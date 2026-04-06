@@ -884,22 +884,27 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	var maintenanceWindow = new(neon.MaintenanceWindow)
-	if v, ok := d.GetOk("maintenance_window"); ok {
-		if len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-			if v, ok := v.([]interface{})[0].(map[string]interface{}); ok && len(v) > 0 {
-				weekdaysRaw := v["weekdays"].([]interface{})
-				var weekdays = make([]int, len(weekdaysRaw))
-				for i, weekday := range weekdaysRaw {
-					weekdays[i] = weekday.(int)
+	// Only send maintenanceWindow when the user changes it in Terraform. Neon free-tier
+	// projects reject UpdateProject if maintenanceWindow is present on unrelated updates
+	// (e.g. history_retention_seconds). See kislerdm/terraform-provider-neon#199.
+	var maintenanceWindow *neon.MaintenanceWindow
+	if d.HasChange("maintenance_window") {
+		if v, ok := d.GetOk("maintenance_window"); ok {
+			if len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+				if v, ok := v.([]interface{})[0].(map[string]interface{}); ok && len(v) > 0 {
+					weekdaysRaw := v["weekdays"].([]interface{})
+					var weekdays = make([]int, len(weekdaysRaw))
+					for i, weekday := range weekdaysRaw {
+						weekdays[i] = weekday.(int)
+					}
+					maintenanceWindow = &neon.MaintenanceWindow{
+						Weekdays:  weekdays,
+						StartTime: v["start_time"].(string),
+						EndTime:   v["end_time"].(string),
+					}
 				}
-				maintenanceWindow.Weekdays = weekdays
-				maintenanceWindow.StartTime = v["start_time"].(string)
-				maintenanceWindow.EndTime = v["end_time"].(string)
 			}
 		}
-	} else {
-		maintenanceWindow = nil
 	}
 
 	req.Project.Settings = &neon.ProjectSettingsData{
