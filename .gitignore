@@ -5,6 +5,7 @@ example.tf
 terraform.tfplan
 terraform.tfstate
 bin/
+.dev-overrides/
 dist/
 modules-dev/
 /pkg/
